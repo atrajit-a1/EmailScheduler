@@ -109,7 +109,7 @@ def send_mail(time_of_day, recipients):
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(main_gmail, app_password)
         smtp.send_message(msg)
-        print(f'Email sent successfully to: {', '.join(recipients)}')
+        print(f"Email sent successfully to: {', '.join(recipients)}")
 
 if __name__ == "__main__":
     import sys
