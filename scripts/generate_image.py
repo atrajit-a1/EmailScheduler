@@ -48,8 +48,8 @@ def generate_image(time_of_day):
                 if "inlineData" in part:
                     image_data = part["inlineData"]["data"]
                     now = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    rootName=f"{time_of_day}_{now}"
-                    filename = f"images/{rootName}.png"
+                    rootName=f"{time_of_day}_{now}.png"
+                    filename = f"images/{rootName}"
                     os.makedirs('images', exist_ok=True)
                     with open(filename, "wb") as f:
                         f.write(base64.b64decode(image_data))
