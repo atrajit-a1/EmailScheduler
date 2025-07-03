@@ -69,14 +69,39 @@ def get_latest_image_url(time_of_day):
     latest_file = sorted(files)[-1]
     return GITHUB_PAGES_BASE_URL + latest_file
 
+def generate_custom_name(time_of_day):
+    prompt = f"Suggest a creative, friendly, and professional sender name for a {time_of_day} greeting email. Respond with only the name, no extra text."
+    headers = {
+        'x-goog-api-key': GEMINI_API_KEY,
+        'Content-Type': 'application/json'
+    }
+    data = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }],
+        "generationConfig": {"responseModalities": ["TEXT"]}
+    }
+    response = requests.post(GEN_URL, headers=headers, json=data)
+    response.raise_for_status()
+    result = response.json()
+    name = None
+    for candidate in result.get('candidates', []):
+        for part in candidate.get('content', {}).get('parts', []):
+            if 'text' in part:
+                name = part['text'].strip().split('\n')[0]
+                break
+    if not name:
+        name = f"Wishing Master ({time_of_day.capitalize()})"
+    return name
+
 def send_mail(time_of_day, recipient):
     html_content = generate_html_content(time_of_day)
     image_url = get_latest_image_url(time_of_day)
+    custom_name = generate_custom_name(time_of_day)
     if image_url:
-        # Insert image at the top of the email
         html_content = f'<div style="text-align:center;"><img src="{image_url}" style="max-width:100%;border-radius:16px;"></div>' + html_content
     msg = EmailMessage()
-    msg['Subject'] = f'{time_of_day.capitalize()} Wishes from Wishing Master'
+    msg['Subject'] = f'{time_of_day.capitalize()} Wishes from {custom_name}'
     msg['From'] = formataddr((custom_name, alias_email))
     msg['To'] = recipient
     msg.set_content('This is a multi-part message in MIME format.')
