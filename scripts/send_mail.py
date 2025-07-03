@@ -13,6 +13,42 @@ main_gmail = os.getenv('main_gmail')
 app_password = os.getenv('app_password')
 alias_email = os.getenv('alias_email')
 GITHUB_PAGES_BASE_URL = os.getenv('GITHUB_PAGES_BASE_URL', 'https://yourusername.github.io/yourrepo/images/')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+GEMINI_HEADERS = {
+    "Content-Type": "application/json",
+    "x-goog-api-key": GEMINI_API_KEY
+}
+
+def generate_html_content(time_of_day):
+    prompt = f"Generate a short, cheerful {time_of_day} greeting in HTML mail format. Add quotes, poems, funny infos and serious infos and a short story and healthy tips in professionally designed manner and compatible and visually applealing in gmail inbox."
+    payload = {
+        "contents": [
+            {"parts": [{"text": prompt}]}
+        ]
+    }
+    response = requests.post(GEMINI_URL, headers=GEMINI_HEADERS, json=payload)
+    if response.status_code == 200:
+        res_json = response.json()
+        parts = res_json.get("candidates", [])[0].get("content", {}).get("parts", [])
+        return parts[0].get("text", "") if parts else ""
+    else:
+        return f"<p>Wishing you a wonderful {time_of_day}!</p>"
+
+def generate_custom_name(time_of_day):
+    prompt = f"Suggest a creative sender name for a {time_of_day} greeting email."
+    payload = {
+        "contents": [
+            {"parts": [{"text": prompt}]}
+        ]
+    }
+    response = requests.post(GEMINI_URL, headers=GEMINI_HEADERS, json=payload)
+    if response.status_code == 200:
+        res_json = response.json()
+        parts = res_json.get("candidates", [])[0].get("content", {}).get("parts", [])
+        return parts[0].get("text", "") if parts else f"Wishing Master ({time_of_day.capitalize()})"
+    else:
+        return f"Wishing Master ({time_of_day.capitalize()})"
 
 def get_latest_image_url(time_of_day):
     images_dir = os.path.join(os.path.dirname(__file__), '..', 'images')
