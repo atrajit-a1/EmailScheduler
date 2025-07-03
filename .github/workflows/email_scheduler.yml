@@ -19,6 +19,9 @@ on:
         required: true
         default: 'morning'
 
+permissions:
+  contents: write
+
 jobs:
   generate_and_send:
     runs-on: ubuntu-latest
