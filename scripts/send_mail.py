@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import requests
 import re
 
+# Load .env variables
 load_dotenv()
 
 main_gmail = os.getenv('main_gmail')
@@ -19,15 +20,31 @@ GEMINI_HEADERS = {
     "x-goog-api-key": GEMINI_API_KEY
 }
 
+# Theme styles based on time of day
+THEME_STYLE_HINTS = {
+    "morning": "Use a bright and energetic color scheme with warm tones like yellow, orange, and sky blue.",
+    "afternoon": "Use a light, clear design with shades of soft blue, white, and sunlit yellow.",
+    "evening": "Use calm and cozy tones like peach, twilight blue, and soft gold.",
+    "night": "Use dark mode styling with deep blues, purples, and neon accents for a calm and dreamy vibe."
+}
 
-def clean_gemini_response(text):
-    """Remove markdown backticks and trim extra whitespace."""
-    cleaned = re.sub(r"```html|```", "", text)
-    return cleaned.strip()
+
+def clean_text(text):
+    """Remove markdown and formatting characters."""
+    text = re.sub(r'[`*]', '', text)  # Remove backticks and asterisks
+    return text.strip()
 
 
 def generate_html_content(time_of_day):
-    prompt = f"Generate a short, cheerful {time_of_day} greeting in HTML mail format. Add quotes, poems, funny info, serious facts, a short story, and health tips. Design should be Gmail-compatible and visually appealing. Remove markdown formatting."
+    theme_hint = THEME_STYLE_HINTS.get(time_of_day.lower(), "")
+    prompt = (
+        f"Generate a professionally styled, visually appealing HTML email body for a {time_of_day} greeting. "
+        f"The design should be modern, Gmail-compatible, and responsive with polished layout and spacing. "
+        f"Include: a cheerful greeting, an inspirational quote, a short poem, one health tip, a fun fact, "
+        f"and a calming 3-line story. "
+        f"Use this style theme: {theme_hint} "
+        f"Return raw inline-styled HTML only. No markdown, no backticks, no style blocks."
+    )
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
@@ -35,14 +52,14 @@ def generate_html_content(time_of_day):
     if response.status_code == 200:
         res_json = response.json()
         parts = res_json.get("candidates", [])[0].get("content", {}).get("parts", [])
-        raw_text = parts[0].get("text", "") if parts else ""
-        return clean_gemini_response(raw_text)
+        raw_html = parts[0].get("text", "") if parts else ""
+        return clean_text(raw_html)
     else:
         return f"<p>Wishing you a wonderful {time_of_day}!</p>"
 
 
 def generate_custom_name(time_of_day):
-    prompt = f"Suggest a short (1-4 words) creative sender name for a {time_of_day} greeting email. Avoid quotes or punctuation."
+    prompt = f"Suggest a short (max 3 words) sender name for a {time_of_day} themed email. Avoid symbols or formatting."
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
@@ -50,31 +67,33 @@ def generate_custom_name(time_of_day):
     if response.status_code == 200:
         res_json = response.json()
         parts = res_json.get("candidates", [])[0].get("content", {}).get("parts", [])
-        name = parts[0].get("text", "") if parts else f"Wishing Master ({time_of_day})"
-        name = clean_gemini_response(name)
-        return ' '.join(name.split()[:4])  # Limit to 4 words max
+        name = parts[0].get("text", "") if parts else f"Wishing Sender ({time_of_day})"
+        name = clean_text(name)
+        return ' '.join(name.split()[:3])  # Limit to 3 words
     else:
-        return f"Wishing Master ({time_of_day})"
+        return f"Wishing Sender ({time_of_day})"
 
 
-def get_all_image_urls(time_of_day):
-    """Return list of URLs for all images matching the time_of_day."""
+def get_first_image_url(time_of_day):
+    """Return the first matching image URL for time_of_day from ../images/ directory."""
     images_dir = os.path.join(os.path.dirname(__file__), '..', 'images')
-    files = [f for f in os.listdir(images_dir) if f.startswith(time_of_day) and f.endswith('.png')]
-    return [GITHUB_PAGES_BASE_URL + f for f in sorted(files)] if files else []
+    files = [f for f in sorted(os.listdir(images_dir)) if f.startswith(time_of_day) and f.endswith('.png')]
+    return GITHUB_PAGES_BASE_URL + files[0] if files else None
 
 
 def send_mail(time_of_day, recipients):
-    image_urls = get_all_image_urls(time_of_day)
-    custom_name = generate_custom_name(time_of_day).replace('\n', ' ').replace('\r', ' ').strip()
-    
-    # Construct image section
-    html_images = ""
-    for url in image_urls:
-        html_images += f'<div style="text-align:center;margin:10px 0;"><img src="{url}" style="max-width:100%;border-radius:16px;"></div>'
+    image_url = get_first_image_url(time_of_day)
+    custom_name = generate_custom_name(time_of_day)
 
-    # Final HTML content
-    html_content = html_images + generate_html_content(time_of_day)
+    html_content = ""
+    if image_url:
+        html_content += (
+            f'<div style="text-align:center;margin-bottom:16px;">'
+            f'<img src="{image_url}" alt="{time_of_day} image" style="max-width:100%;border-radius:16px;">'
+            f'</div>'
+        )
+
+    html_content += generate_html_content(time_of_day)
 
     # Compose email
     msg = EmailMessage()
@@ -84,13 +103,14 @@ def send_mail(time_of_day, recipients):
     msg.set_content('This is a multi-part message in MIME format.')
     msg.add_alternative(html_content, subtype='html')
 
-    # Send email
+    # Send email via Gmail SMTP
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(main_gmail, app_password)
         smtp.send_message(msg)
         print(f"✅ Email sent successfully to: {', '.join(recipients)}")
 
 
+# CLI Entry Point
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 3:
