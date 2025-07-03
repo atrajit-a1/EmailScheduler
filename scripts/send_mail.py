@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import requests
 import re
 
-# Load .env variables
+# Load environment variables
 load_dotenv()
 
 main_gmail = os.getenv('main_gmail')
@@ -20,7 +20,7 @@ GEMINI_HEADERS = {
     "x-goog-api-key": GEMINI_API_KEY
 }
 
-# Themes based on time of day
+# Theme styling hints
 THEME_STYLE_HINTS = {
     "morning": "Use bright and energetic colors like yellow, orange, and sky blue.",
     "afternoon": "Use light and clear tones like white, soft blue, and sunlit accents.",
@@ -29,18 +29,19 @@ THEME_STYLE_HINTS = {
 }
 
 def clean_text(text):
-    """Remove markdown formatting and code blocks like ```html."""
-    text = re.sub(r"```[\s\S]*?```", "", text)  # Remove code blocks
-    text = re.sub(r'[`*]', '', text)  # Remove remaining markdown symbols
-    return text.strip()
+    """Remove markdown, backticks, newlines, and trim whitespace."""
+    text = re.sub(r"```[\s\S]*?```", "", text)  # Remove ```code``` blocks
+    text = re.sub(r'[`*]', '', text)  # Remove markdown characters
+    text = text.replace('\n', ' ').replace('\r', ' ').strip()  # Remove line breaks
+    return text
 
 def generate_html_content(time_of_day):
     theme_hint = THEME_STYLE_HINTS.get(time_of_day.lower(), "")
     prompt = (
         f"Generate a professionally styled, Gmail-compatible HTML email body for a {time_of_day} greeting. "
         f"Include: a cheerful greeting message, an inspirational quote, a short poem, a healthy tip, a fun fact, "
-        f"and a calming 3-line story. Use inline styles only, and keep the layout modern and readable. "
-        f"Theme: {theme_hint}. Do not use markdown or backticks."
+        f"and a calming 3-line story. Use inline styles only. Theme: {theme_hint}. "
+        f"Do not use markdown or backticks or any code blocks."
     )
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
@@ -100,21 +101,21 @@ def send_mail(time_of_day, recipients):
 
     html_content += generate_html_content(time_of_day)
 
-    # Build email
+    # Compose email
     msg = EmailMessage()
-    msg['Subject'] = subject_line
-    msg['From'] = formataddr((custom_name, alias_email))
+    msg['Subject'] = clean_text(subject_line)
+    msg['From'] = formataddr((clean_text(custom_name), alias_email))
     msg['To'] = ', '.join(recipients)
     msg.set_content('This is a multi-part message in MIME format.')
     msg.add_alternative(html_content, subtype='html')
 
-    # Send via Gmail SMTP
+    # Send via SMTP
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(main_gmail, app_password)
         smtp.send_message(msg)
         print(f"✅ Email sent successfully to: {', '.join(recipients)}")
 
-# CLI usage
+# Entry point
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 3:
