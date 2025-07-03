@@ -165,17 +165,20 @@ def get_first_image_url(time_of_day):
         return None
 
 def send_mail(time_of_day, recipients):
-    image_url = get_first_image_url(time_of_day)
+    # image_url = get_first_image_url(time_of_day)
     custom_name = generate_custom_name(time_of_day)
     subject_line = generate_subject_line(time_of_day)
 
     html_content = ""
-    if image_url:
-        html_content += (
-            f'<div style="text-align:center;margin-bottom:16px;">'
-            f'<img src="{image_url}" alt="{time_of_day} image" style="max-width:100%;border-radius:16px;">'
-            f'</div>'
-        )
+    # if image_url:
+    with open("filename.txt","r") as f:
+        rootName = f.read()
+    image_url=GITHUB_PAGES_BASE_URL+rootName
+    html_content += (
+        f'<div style="text-align:center;margin-bottom:16px;">'
+        f'<img src="{image_url}" alt="{time_of_day} image" style="max-width:100%;border-radius:16px;">'
+        f'</div>'
+    )
 
     html_content += generate_html_content(time_of_day)
 
