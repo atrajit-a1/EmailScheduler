@@ -48,12 +48,15 @@ def generate_image(time_of_day):
                 if "inlineData" in part:
                     image_data = part["inlineData"]["data"]
                     now = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    filename = f"images/{time_of_day}_{now}.png"
+                    rootName=f"{time_of_day}_{now}"
+                    filename = f"images/{rootName}.png"
                     os.makedirs('images', exist_ok=True)
                     with open(filename, "wb") as f:
                         f.write(base64.b64decode(image_data))
                     print(f"✅ Image saved as {filename} (from part {i})")
                     image_found = True
+                    with open("filename.txt","w") as f:
+                        f.write(rootName)
                     return filename
                 elif "text" in part:
                     print(f"📝 Text response (part {i}): {part['text']}")
