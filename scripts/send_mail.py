@@ -193,6 +193,7 @@ def send_mail(time_of_day, recipients):
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(main_gmail, app_password)
             smtp.send_message(msg)
+            print(f"attached file uri is:{image_url}")
             print(f"✅ Email sent successfully to: {', '.join(recipients)}")
     except Exception as e:
         print(f"❌ Email failed to send: {str(e)}")
