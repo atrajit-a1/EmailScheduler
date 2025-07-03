@@ -61,6 +61,7 @@ def get_latest_image_url(time_of_day):
 def send_mail(time_of_day, recipients):
     image_url = get_latest_image_url(time_of_day)
     custom_name = generate_custom_name(time_of_day)
+    custom_name = custom_name.replace('\n', ' ').replace('\r', ' ').strip()
     html_content = f"<div style=\"text-align:center;\"><img src=\"{image_url}\" style=\"max-width:100%;border-radius:16px;\"></div>"
     html_content += generate_html_content(time_of_day)
     msg = EmailMessage()
