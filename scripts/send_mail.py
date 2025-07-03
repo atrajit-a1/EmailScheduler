@@ -36,20 +36,32 @@ def clean_text(text):
 def generate_html_content(time_of_day):
     theme_hint = THEME_STYLE_HINTS.get(time_of_day.lower(), "")
     prompt = (
-        f"Generate a beautiful, Gmail-compatible HTML email body for a {time_of_day} greeting. "
-        f"Include a heading, quote, poem, health tip, fun fact, and a short 3-line calming story. "
-        f"Use inline CSS styles and no markdown or code blocks. Keep it professionally styled."
-        f" Theme hint: {theme_hint}"
+        f"You are a professional HTML email designer. Generate a clean, responsive, and beautiful HTML body "
+        f"for a {time_of_day} greeting email.\n\n"
+        f"**The email should include the following sections:**\n"
+        f"1. A header with a warm greeting (e.g., 'Good Morning!')\n"
+        f"2. A motivational quote\n"
+        f"3. A short poem (3–4 lines)\n"
+        f"4. A fun or interesting fact\n"
+        f"5. A health or wellness tip\n"
+        f"6. A 2–3 line short story\n\n"
+        f"Use clean inline styles. Avoid markdown, lists, bullet points, code formatting, and text like '```html'.\n"
+        f"Ensure it's visually appealing and professional. {theme_hint}"
     )
+    
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
+    
     response = requests.post(GEMINI_URL, headers=GEMINI_HEADERS, json=payload)
+    
     if response.status_code == 200:
         parts = response.json().get("candidates", [])[0].get("content", {}).get("parts", [])
         raw_html = parts[0].get("text", "") if parts else ""
         cleaned = clean_text(raw_html)
-        if len(cleaned) < 100 or not any(tag in cleaned.lower() for tag in ['<div', '<p', '<html']):
+        
+        if len(cleaned) < 300 or "<" not in cleaned or "quote" not in cleaned.lower():
+            print("⚠️ Gemini response too short or unstructured. Using fallback HTML.")
             return (
                 f"<div style='text-align:center; font-family:sans-serif;'>"
                 f"<h2 style='color:#333;'>Wishing You a Lovely {time_of_day.capitalize()}!</h2>"
