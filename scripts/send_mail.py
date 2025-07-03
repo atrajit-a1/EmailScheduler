@@ -20,70 +20,75 @@ GEMINI_HEADERS = {
     "x-goog-api-key": GEMINI_API_KEY
 }
 
-# Theme styles based on time of day
+# Themes based on time of day
 THEME_STYLE_HINTS = {
-    "morning": "Use a bright and energetic color scheme with warm tones like yellow, orange, and sky blue.",
-    "afternoon": "Use a light, clear design with shades of soft blue, white, and sunlit yellow.",
-    "evening": "Use calm and cozy tones like peach, twilight blue, and soft gold.",
-    "night": "Use dark mode styling with deep blues, purples, and neon accents for a calm and dreamy vibe."
+    "morning": "Use bright and energetic colors like yellow, orange, and sky blue.",
+    "afternoon": "Use light and clear tones like white, soft blue, and sunlit accents.",
+    "evening": "Use warm, calming tones like peach, twilight blue, and soft gold.",
+    "night": "Use dark mode styling with deep blues, purples, and glowing neon effects."
 }
 
-
 def clean_text(text):
-    """Remove markdown and formatting characters."""
-    text = re.sub(r'[`*]', '', text)  # Remove backticks and asterisks
+    """Remove markdown formatting and code blocks like ```html."""
+    text = re.sub(r"```[\s\S]*?```", "", text)  # Remove code blocks
+    text = re.sub(r'[`*]', '', text)  # Remove remaining markdown symbols
     return text.strip()
-
 
 def generate_html_content(time_of_day):
     theme_hint = THEME_STYLE_HINTS.get(time_of_day.lower(), "")
     prompt = (
-        f"Generate a professionally styled, visually appealing HTML email body for a {time_of_day} greeting. "
-        f"The design should be modern, Gmail-compatible, and responsive with polished layout and spacing. "
-        f"Include: a cheerful greeting, an inspirational quote, a short poem, one health tip, a fun fact, "
-        f"and a calming 3-line story. "
-        f"Use this style theme: {theme_hint} "
-        f"Return raw inline-styled HTML only. No markdown, no backticks, no style blocks."
+        f"Generate a professionally styled, Gmail-compatible HTML email body for a {time_of_day} greeting. "
+        f"Include: a cheerful greeting message, an inspirational quote, a short poem, a healthy tip, a fun fact, "
+        f"and a calming 3-line story. Use inline styles only, and keep the layout modern and readable. "
+        f"Theme: {theme_hint}. Do not use markdown or backticks."
     )
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
     response = requests.post(GEMINI_URL, headers=GEMINI_HEADERS, json=payload)
     if response.status_code == 200:
-        res_json = response.json()
-        parts = res_json.get("candidates", [])[0].get("content", {}).get("parts", [])
+        parts = response.json().get("candidates", [])[0].get("content", {}).get("parts", [])
         raw_html = parts[0].get("text", "") if parts else ""
         return clean_text(raw_html)
     else:
         return f"<p>Wishing you a wonderful {time_of_day}!</p>"
 
-
 def generate_custom_name(time_of_day):
-    prompt = f"Suggest a short (max 3 words) sender name for a {time_of_day} themed email. Avoid symbols or formatting."
+    prompt = f"Suggest a short (max 3 words) sender name for a {time_of_day} themed email. Avoid symbols or quotes."
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
     response = requests.post(GEMINI_URL, headers=GEMINI_HEADERS, json=payload)
     if response.status_code == 200:
-        res_json = response.json()
-        parts = res_json.get("candidates", [])[0].get("content", {}).get("parts", [])
+        parts = response.json().get("candidates", [])[0].get("content", {}).get("parts", [])
         name = parts[0].get("text", "") if parts else f"Wishing Sender ({time_of_day})"
-        name = clean_text(name)
-        return ' '.join(name.split()[:3])  # Limit to 3 words
+        return ' '.join(clean_text(name).split()[:3])
     else:
         return f"Wishing Sender ({time_of_day})"
 
+def generate_subject_line(time_of_day):
+    prompt = f"Write a short and cheerful subject line (max 8 words) for a {time_of_day} greeting email."
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+    response = requests.post(GEMINI_URL, headers=GEMINI_HEADERS, json=payload)
+    if response.status_code == 200:
+        parts = response.json().get("candidates", [])[0].get("content", {}).get("parts", [])
+        subject = parts[0].get("text", "") if parts else f"{time_of_day.capitalize()} Greetings!"
+        return clean_text(subject)
+    else:
+        return f"{time_of_day.capitalize()} Greetings!"
 
 def get_first_image_url(time_of_day):
-    """Return the first matching image URL for time_of_day from ../images/ directory."""
+    """Return the first matching image URL based on time_of_day."""
     images_dir = os.path.join(os.path.dirname(__file__), '..', 'images')
-    files = [f for f in sorted(os.listdir(images_dir)) if f.startswith(time_of_day) and f.endswith('.png')]
+    files = sorted([f for f in os.listdir(images_dir) if f.startswith(time_of_day) and f.endswith('.png')])
     return GITHUB_PAGES_BASE_URL + files[0] if files else None
-
 
 def send_mail(time_of_day, recipients):
     image_url = get_first_image_url(time_of_day)
     custom_name = generate_custom_name(time_of_day)
+    subject_line = generate_subject_line(time_of_day)
 
     html_content = ""
     if image_url:
@@ -95,27 +100,26 @@ def send_mail(time_of_day, recipients):
 
     html_content += generate_html_content(time_of_day)
 
-    # Compose email
+    # Build email
     msg = EmailMessage()
-    msg['Subject'] = f'{time_of_day.capitalize()} Wishes from {custom_name}'
+    msg['Subject'] = subject_line
     msg['From'] = formataddr((custom_name, alias_email))
     msg['To'] = ', '.join(recipients)
     msg.set_content('This is a multi-part message in MIME format.')
     msg.add_alternative(html_content, subtype='html')
 
-    # Send email via Gmail SMTP
+    # Send via Gmail SMTP
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(main_gmail, app_password)
         smtp.send_message(msg)
         print(f"✅ Email sent successfully to: {', '.join(recipients)}")
 
-
-# CLI Entry Point
+# CLI usage
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 3:
         print("Usage: python send_mail.py <time_of_day> <recipients_comma_separated>")
         exit(1)
-    time_of_day = sys.argv[1]
+    time_of_day = sys.argv[1].lower()
     recipients = [email.strip() for email in sys.argv[2].split(',') if email.strip()]
     send_mail(time_of_day, recipients)
