@@ -34,6 +34,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Generate image
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           TIME_OF_DAY=${{ github.event.inputs.time_of_day || 'morning' }}
           python scripts/generate_image.py $TIME_OF_DAY
