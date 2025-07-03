@@ -18,10 +18,6 @@ on:
         description: 'Time of day (morning, noon, afternoon, evening, night)'
         required: true
         default: 'morning'
-      recipient:
-        description: 'Recipient email address'
-        required: true
-        default: 'your@email.com'
 
 jobs:
   generate_and_send:
