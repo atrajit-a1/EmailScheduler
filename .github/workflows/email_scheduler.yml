@@ -55,7 +55,7 @@ jobs:
           alias_email: ${{ secrets.ALIAS_EMAIL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_PAGES_BASE_URL: ${{ secrets.GITHUB_PAGES_BASE_URL }}
+          RECIPIENTS: ${{ secrets.RECIPIENTS }}
         run: |
           TIME_OF_DAY=${{ github.event.inputs.time_of_day || 'morning' }}
-          RECIPIENT=${{ github.event.inputs.recipient || 'your@email.com' }}
-          python scripts/send_mail.py $TIME_OF_DAY $RECIPIENT
+          python scripts/send_mail.py $TIME_OF_DAY "$RECIPIENTS"
