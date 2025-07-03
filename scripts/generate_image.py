@@ -1,6 +1,7 @@
 import os
 import requests
 import base64
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -26,32 +27,43 @@ def generate_image(time_of_day):
         'x-goog-api-key': GEMINI_API_KEY,
         'Content-Type': 'application/json'
     }
-    data = {
+    payload = {
         "contents": [{
-            "parts": [{"text": prompt}]
+            "parts": [
+                {"text": prompt}
+            ]
         }],
-        "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]}
+        "generationConfig": {
+            "responseModalities": ["TEXT", "IMAGE"]
+        }
     }
-    response = requests.post(GEN_URL, headers=headers, json=data)
-    response.raise_for_status()
-    result = response.json()
-    # Extract base64 image data
-    image_data = None
-    for candidate in result.get('candidates', []):
-        for part in candidate.get('content', {}).get('parts', []):
-            if 'inlineData' in part and part['inlineData']['mimeType'].startswith('image/'):
-                image_data = part['inlineData']['data']
-                break
-    if not image_data:
-        raise Exception('No image data found in Gemini response.')
-    # Unique filename
-    now = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"images/{time_of_day}_{now}.png"
-    os.makedirs('images', exist_ok=True)
-    with open(filename, 'wb') as f:
-        f.write(base64.b64decode(image_data))
-    print(f"Image saved as {filename}")
-    return filename
+    response = requests.post(GEN_URL, headers=headers, json=payload)
+    if response.status_code == 200:
+        res_json = response.json()
+        candidates = res_json.get("candidates", [])
+        image_found = False
+        for candidate in candidates:
+            parts = candidate.get("content", {}).get("parts", [])
+            for i, part in enumerate(parts):
+                if "inlineData" in part:
+                    image_data = part["inlineData"]["data"]
+                    now = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f"images/{time_of_day}_{now}.png"
+                    os.makedirs('images', exist_ok=True)
+                    with open(filename, "wb") as f:
+                        f.write(base64.b64decode(image_data))
+                    print(f"✅ Image saved as {filename} (from part {i})")
+                    image_found = True
+                    return filename
+                elif "text" in part:
+                    print(f"📝 Text response (part {i}): {part['text']}")
+        if not image_found:
+            print("❌ No image data found in the response parts.")
+            raise Exception('No image data found in Gemini response.')
+    else:
+        print(f"❌ Request failed with status code {response.status_code}")
+        print(response.text)
+        response.raise_for_status()
 
 if __name__ == "__main__":
     import sys
