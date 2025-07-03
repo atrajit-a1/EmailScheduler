@@ -94,7 +94,7 @@ def generate_custom_name(time_of_day):
         name = f"Wishing Master ({time_of_day.capitalize()})"
     return name
 
-def send_mail(time_of_day, recipient):
+def send_mail(time_of_day, recipients):
     html_content = generate_html_content(time_of_day)
     image_url = get_latest_image_url(time_of_day)
     custom_name = generate_custom_name(time_of_day)
@@ -103,19 +103,19 @@ def send_mail(time_of_day, recipient):
     msg = EmailMessage()
     msg['Subject'] = f'{time_of_day.capitalize()} Wishes from {custom_name}'
     msg['From'] = formataddr((custom_name, alias_email))
-    msg['To'] = recipient
+    msg['To'] = ', '.join(recipients)
     msg.set_content('This is a multi-part message in MIME format.')
     msg.add_alternative(html_content, subtype='html')
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(main_gmail, app_password)
         smtp.send_message(msg)
-        print(f'Email sent successfully to {recipient}!')
+        print(f'Email sent successfully to: {', '.join(recipients)}')
 
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 3:
-        print("Usage: python send_mail.py <time_of_day> <recipient_email>")
+        print("Usage: python send_mail.py <time_of_day> <recipients_comma_separated>")
         exit(1)
     time_of_day = sys.argv[1]
-    recipient = sys.argv[2]
-    send_mail(time_of_day, recipient)
+    recipients = [email.strip() for email in sys.argv[2].split(',') if email.strip()]
+    send_mail(time_of_day, recipients)
